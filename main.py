@@ -1,6 +1,4 @@
 import streamlit as st
-import time
-import sys
 import ssl
 import json
 import pandas as pd
@@ -10,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
-st.markdown("# Extract date from Google 🎈")
+st.markdown("# Extract date from Goooooooogle 🎈")
 
 st.text_input("Domain or URL", key="url", value="https://semji.com")
 
