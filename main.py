@@ -6,9 +6,13 @@ import datetime
 from six.moves.urllib import request
 from dateutil.relativedelta import relativedelta
 
+BRIGHTDATA_USERNAME = st.secrets.brightdata.username
+BRIGHTDATA_PASSWORD = st.secrets.brightdata.password
+
+# Do not validate SSL
 ssl._create_default_https_context = ssl._create_unverified_context
 
-st.markdown("# Extract date from Goooooooogle 🎈")
+st.markdown("# Extract date from Google 🎈")
 
 st.text_input("Domain or URL", key="url", value="https://semji.com")
 
@@ -29,7 +33,8 @@ col2.date_input(
 
 @st.cache
 def convert_df(df):
-   return df.to_csv().encode('utf-8')
+    return df.to_csv().encode('utf-8')
+
 
 def get_relative_date_from_organic_result(str_days_ago):
     TODAY = datetime.date.today()
@@ -54,18 +59,20 @@ def get_relative_date_from_organic_result(str_days_ago):
     else:
         return None
 
+
 @st.cache
 def scrape_google(query, start):
     opener = request.build_opener(
         request.ProxyHandler({
-            'http':  f"http://{st.secrets.brightdata.username}:{st.secrets.brightdata.password}@zproxy.lum-superproxy.io:22225",
-            'https': f"http://{st.secrets.brightdata.username}:{st.secrets.brightdata.password}@zproxy.lum-superproxy.io:22225"
+            'http': f"http://{BRIGHTDATA_USERNAME}:{BRIGHTDATA_PASSWORD}@zproxy.lum-superproxy.io:22225",
+            'https': f"http://{BRIGHTDATA_USERNAME}:{BRIGHTDATA_PASSWORD}@zproxy.lum-superproxy.io:22225"
         })
     )
 
     data = opener.open(f"{query}&start={start}&lum_json=1").read()
 
     return data
+
 
 def extract_results(data):
     rows = []
@@ -97,13 +104,10 @@ def extract_results(data):
 
     return rows
 
-if st.button('Start Google scraping'):
+
+def scrape_all_pages(google_query):
     start = 0
     rows = []
-    google_query = f"https://www.google.com/search?q=site:{st.session_state.url}&num=100&tbs=cdr:1,cd_min:{st.session_state.date_from.strftime('%d/%m/%Y')},cd_max:{st.session_state.date_to.strftime('%d/%m/%Y')}&tbm="
-
-    st.markdown(f"[Generated Google query]({google_query})")
-
     results_count = None
     while True:
         data = json.loads(scrape_google(google_query, start))
@@ -115,6 +119,19 @@ if st.button('Start Google scraping'):
         if not 'pagination' in data or not 'next_page_link' in data['pagination']:
             break
 
+    return rows, results_count
+
+
+if st.button('Start Google scraping'):
+    website_or_url = st.session_state.url
+    date_from = st.session_state.date_from
+    date_to = st.session_state.date_to
+
+    google_query = f"https://www.google.com/search?q=site:{website_or_url}&num=100&tbs=cdr:1,cd_min:{date_from.strftime('%m/%d/%Y')},cd_max:{date_to.strftime('%m/%d/%Y')}&tbm="
+
+    st.markdown(f"[Generated Google query]({google_query})")
+
+    rows, results_count = scrape_all_pages(google_query)
     dataframe = pd.DataFrame(rows)
 
     st.markdown("## Results")
@@ -122,12 +139,11 @@ if st.button('Start Google scraping'):
 
     st.dataframe(dataframe)
 
-    csv = convert_df(dataframe)
-
+    csv = convert_df(dataframe.sort_values(by="date", ascending=0))
     st.download_button(
-       "Download as CSV",
-       csv,
-       "serp_results.csv",
-       "text/csv",
-       key='download-csv'
+        "Download as CSV",
+        csv,
+        "serp_results.csv",
+        "text/csv",
+        key='download-csv'
     )
